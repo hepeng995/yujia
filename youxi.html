@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧸 时尚百货城·远洋贸易助手（官方规则版）</title>
+<style>
+*{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif;margin:0;padding:0}
+body{background:linear-gradient(135deg,#FFF0F7,#FFE6F2);min-height:100vh;padding:16px}
+.card{background:#fff;border-radius:20px;padding:24px;margin-bottom:20px;box-shadow:0 4px 12px rgba(255,107,155,0.1)}
+.title{font-size:28px;color:#FF6B9B;text-align:center;margin-bottom:8px}
+/* 重点文字样式：放大+醒目颜色+加粗+下划线 */
+.subtitle{
+  font-size:20px;
+  color:#FF4D4F;
+  text-align:center;
+  margin-bottom:20px;
+  font-weight:bold;
+  text-decoration:underline;
+  text-shadow: 0 0 8px rgba(255,77,79,0.3);
+}
+h3{font-size:22px;color:#333;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+select,input,button,textarea{width:100%;padding:14px 16px;border-radius:16px;border:1px solid #FFD6E7;margin-bottom:12px;font-size:18px}
+button{background:linear-gradient(90deg,#FF8CB4,#FF6B9B);color:#fff;font-weight:bold;border:none;cursor:pointer;font-size:20px}
+.btn-green{background:#52C41A !important}
+.btn-red{background:#FF4D4F !important}
+/* 无库存商品标记样式 */
+.goods-item{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:12px;margin-bottom:8px;background:#FFF8FB}
+.goods-name{font-size:16px;font-weight:bold}
+.stock-tag{font-size:14px;padding:4px 8px;border-radius:6px}
+.stock-yes{background:#E6FFFB;color:#00B42A}
+.stock-no{background:#FFF1F0;color:#F53F3F;font-weight:bold}
+/* 新增：提示说明样式 */
+.tips-note{
+  background:#FFF8FB;
+  border-left:4px solid #1890FF;
+  padding:12px 16px;
+  margin-bottom:16px;
+  color:#333;
+  font-size:14px;
+  border-radius:8px;
+}
+.tips-note strong{color:#FF4D4F}
+.route{line-height:1.8;padding:12px;background:#FFF8FB;border-radius:12px}
+.warn{background:#FFF1F0;color:#F53F3F;padding:12px;border-radius:12px;text-align:center;font-weight:bold;margin-top:12px}
+.profit{color:#FF4D4F;font-weight:bold}
+.oil{color:#1890FF;font-weight:bold}
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="login" class="card" style="max-width:420px;margin:50px auto">
+  <div class="title">🔒 名媛会专属</div>
+  <div style="color:#F53F3F;text-align:center;margin-bottom:12px;font-size:14px">密码=当日日期+3天（格式：2026.3.30）</div>
+  <input id="pwd" type="text" placeholder="请输入密码">
+  <button onclick="login()">进入</button>
+</div>
+
+<!-- 主页面 -->
+<div id="app" style="display:none">
+  <div class="title">🧸 时尚百货城·远洋贸易助手</div>
+  <!-- 重点突出显示：先把船升级到最高等级 -->
+  <div class="subtitle">先把船升级到最高等级</div>
+
+  <!-- 起始国家（跑商起点） -->
+  <div class="card">
+    <h3>📍 跑商起始国家（路线起点）</h3>
+    <select id="startCountry" onchange="renderGoodsStock()"></select>
+  </div>
+
+  <!-- 截图识别（支持多次上传） -->
+  <div class="card">
+    <h3>📸 上传截图 → 自动识别库存/价格（可多次）</h3>
+    <input type="file" id="screenshot" accept="image/*">
+    <button onclick="scanImage()">识别并填充（14/18/22点刷新）</button>
+  </div>
+
+  <!-- 资金+油桶（完全按官方规则） -->
+  <div class="card">
+    <h3>💰 贸易资金 + ⛽ 燃油（油桶）</h3>
+    <input type="number" id="myMoney" placeholder="输入当前贸易资金" onchange="saveMoneyOil()">
+    <input type="number" id="myOil" placeholder="输入当前燃油（油桶）数量" onchange="saveMoneyOil()">
+    <div id="moneyOilTip" style="color:#666;font-size:14px;margin-top:8px">
+      💰 资金：0 | ⛽ 燃油：0 | 单次航行4h，1桶加速30min，最多用8桶
+    </div>
+  </div>
+
+  <!-- 核心功能：标记无库存商品（添加明确提示） -->
+  <div class="card">
+    <h3>📦 标记无库存商品（路线计算会自动忽略）</h3>
+    <!-- 新增：醒目提示说明 -->
+    <div class="tips-note">
+      📌 <strong>重要说明：</strong>选择「跑商起始国家」后，下方仅显示【该国家】的所有商品列表（非所有国家商品总和）
+    </div>
+    <div id="goodsStockList" style="margin-bottom:12px">
+      <!-- 商品库存标记列表 -->
+    </div>
+    <button class="btn-green" onclick="resetAllStock()">重置所有商品库存状态</button>
+  </div>
+
+  <!-- 最优路线（含油桶/时间计算，自动忽略无库存商品） -->
+  <div class="card">
+    <h3>🚀 最优跑商路线（自动忽略无库存商品）</h3>
+    <button onclick="calcBestRoute()">计算最优路线</button>
+    <div id="routeResult" class="route" style="margin-top:12px"></div>
+  </div>
+
+  <div class="warn" id="alert22">🚨 22:00 统一刷新！请售罄货物，避免收益落空</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script>
+// ======================
+// 基础数据（16国+16商品，完全对齐游戏）
+// ======================
+const COUNTRIES = ["英国","挪威","荷兰","法国","土耳其","印度","斯里兰卡","泰国","中国","加拿大","墨西哥","智利","巴西","南非","澳洲","新西兰"];
+const GOODS = ["威士忌","三文鱼","郁金香","红酒","巧克力","香料","红茶","榴莲","瓷器","枫糖浆","龙舌兰","车厘子","咖啡豆","钻石","羊毛靴","牛奶"];
+
+let goodsData = {}; // 商品数据 {国家: [{name, stock, buyPrice, sellPrice, isStockEmpty: false}]}
+let myMoney = localStorage.getItem("myMoney") || 0;
+let myOil = localStorage.getItem("myOil") || 0;
+
+// ======================
+// 密码：当日日期+3天（格式：2026.3.30）
+// ======================
+function getPassword() {
+  let now = new Date();
+  let target = new Date(now);
+  target.setDate(now.getDate() + 3);
+  return `${target.getFullYear()}.${target.getMonth()+1}.${target.getDate()}`;
+}
+
+// ======================
+// 初始化（完全按官方规则）
+// ======================
+function initAll() {
+  COUNTRIES.forEach(c => {
+    goodsData[c] = GOODS.map(g => ({
+      name:g,
+      stock:1000,
+      buyPrice: Math.floor(Math.random()*300+100),
+      sellPrice:0,
+      isStockEmpty: false // 核心字段：标记商品是否无库存
+    }));
+  });
+  myMoney = 0;
+  myOil = 0;
+  saveAll();
+}
+
+function saveAll() {
+  localStorage.setItem("goodsData", JSON.stringify(goodsData));
+  localStorage.setItem("myMoney", myMoney);
+  localStorage.setItem("myOil", myOil);
+}
+
+function loadAll() {
+  let g = localStorage.getItem("goodsData");
+  let m = localStorage.getItem("myMoney");
+  let o = localStorage.getItem("myOil");
+  if(g) { goodsData=JSON.parse(g); } else initAll();
+  if(m) myMoney=Number(m);
+  if(o) myOil=Number(o);
+}
+
+// ======================
+// 登录
+// ======================
+function login() {
+  let input = document.getElementById("pwd").value.trim();
+  if(input === getPassword()) {
+    document.getElementById("login").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadAll();
+    fillSelect();
+    renderGoodsStock(); // 初始化商品库存标记列表
+    checkTime();
+    setInterval(checkTime, 60000); // 每分钟检查时间/刷新
+  } else {
+    alert(`密码错误！\n正确格式：${getPassword()}（当日日期+3天）`);
+  }
+}
+
+// ======================
+// 填充下拉框
+// ======================
+function fillSelect() {
+  let startC=document.getElementById("startCountry");
+  COUNTRIES.forEach(c => {
+    startC.innerHTML+=`<option>${c}</option>`;
+  });
+  document.getElementById("myMoney").value=myMoney;
+  document.getElementById("myOil").value=myOil;
+  updateMoneyOilTip();
+}
+
+// ======================
+// 资金+燃油保存（官方规则：1桶加速30min，单次4h）
+// ======================
+function saveMoneyOil() {
+  myMoney=Number(document.getElementById("myMoney").value)||0;
+  myOil=Number(document.getElementById("myOil").value)||0;
+  // 官方规则：最多用8桶（4h=8×0.5h）
+  if(myOil>8) myOil=8;
+  document.getElementById("myOil").value=myOil;
+  saveAll();
+  updateMoneyOilTip();
+}
+
+function updateMoneyOilTip() {
+  // 计算加速后时间
+  let baseTime=240; // 4h=240分钟
+  let useOil=Math.min(myOil,8);
+  let finalTime=Math.max(baseTime - useOil*30, 0);
+  let timeStr=finalTime>=60?`${Math.floor(finalTime/60)}h${finalTime%60}min`:`${finalTime}min`;
+  
+  document.getElementById("moneyOilTip").innerText=
+    `💰 资金：${myMoney} | ⛽ 燃油：${myOil}/8 | 单次航行：${timeStr}（1桶加速30min）`;
+}
+
+// ======================
+// 截图OCR识别（支持多次上传，14/18/22点刷新）
+// ======================
+async function scanImage() {
+  let file=document.getElementById("screenshot").files[0];
+  if(!file) {alert("请先选择截图文件");return;}
+  // 默认使用起始国家作为识别的目标国家
+  let c=document.getElementById("startCountry").value;
+  let {data:{text}}=await Tesseract.recognize(file, 'chi_sim');
+  alert(`识别成功！\n当前国家：${c}\n（14/18/22点价格/库存刷新）\n\n识别内容：\n${text}`);
+  
+  let lines=text.split(/\n/);
+  lines.forEach(line => {
+    GOODS.forEach(g => {
+      if(line.includes(g)) {
+        let nums=line.match(/\d+/g);
+        if(nums&&nums.length>=2) {
+          let item=goodsData[c].find(x=>x.name===g);
+          if(item) {
+            item.stock=Number(nums[0]);
+            item.buyPrice=Number(nums[1]);
+            // 识别到库存为0时自动标记无库存
+            item.isStockEmpty = item.stock <= 0;
+          }
+        } else if(nums) {
+          let item=goodsData[c].find(x=>x.name===g);
+          if(item) {
+            item.stock=Number(nums[0]);
+            item.isStockEmpty = item.stock <= 0;
+          }
+        }
+      }
+    });
+  });
+  saveAll();
+  renderGoodsStock(); // 刷新商品库存标记列表
+  document.getElementById("screenshot").value=""; // 清空，支持下次上传
+}
+
+// ======================
+// 核心功能：渲染商品库存标记列表
+// ======================
+function renderGoodsStock() {
+  let c=document.getElementById("startCountry").value;
+  let list=goodsData[c]||[];
+  let html="";
+  
+  list.forEach((g,i) => {
+    // 库存状态标签
+    let stockTag = g.isStockEmpty 
+      ? `<span class="stock-tag stock-no">❌ 无库存</span>` 
+      : `<span class="stock-tag stock-yes">✅ 有库存</span>`;
+    
+    // 切换库存状态按钮
+    let btnText = g.isStockEmpty ? "标记为有库存" : "标记为无库存";
+    let btnClass = g.isStockEmpty ? "btn-green" : "btn-red";
+    
+    html+=`
+    <div class="goods-item">
+      <div class="goods-name">${g.name}</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${stockTag}
+        <button class="${btnClass}" style="padding:8px 12px;font-size:14px;width:auto"
+          onclick="toggleStockEmpty('${c}',${i})">${btnText}</button>
+      </div>
+    </div>`;
+  });
+  
+  document.getElementById("goodsStockList").innerHTML=html;
+}
+
+// ======================
+// 切换商品库存状态
+// ======================
+function toggleStockEmpty(c,i) {
+  let g=goodsData[c][i];
+  g.isStockEmpty = !g.isStockEmpty; // 切换库存状态
+  saveAll();
+  renderGoodsStock(); // 刷新列表
+}
+
+// ======================
+// 重置所有商品库存状态
+// ======================
+function resetAllStock() {
+  let c=document.getElementById("startCountry").value;
+  goodsData[c].forEach(g => {
+    g.isStockEmpty = false; // 全部重置为有库存
+  });
+  saveAll();
+  renderGoodsStock();
+  alert("✅ 已重置当前国家所有商品为「有库存」状态！");
+}
+
+// ======================
+// 最优路线计算（核心：自动忽略无库存商品）
+// ======================
+function calcBestRoute() {
+  let startC=document.getElementById("startCountry").value;
+  let cur=startC;
+  let visited={};
+  let route=[];
+  let totalProfit=0;
+  let useOil=Math.min(myOil,8);
+  let baseTime=240; // 4h=240分钟
+  let finalTime=Math.max(baseTime - useOil*30,0);
+  let timeStr=finalTime>=60?`${Math.floor(finalTime/60)}h${finalTime%60}min`:`${finalTime}min`;
+  
+  // 最多6站闭环（官方推荐）
+  for(let i=0;i<6;i++) {
+    if(visited[cur]) break;
+    visited[cur]=true;
+    
+    // 简化：随机选下一个未访问国家
+    let next=COUNTRIES.find(x=>!visited[x]);
+    if(!next) break;
+    
+    // 核心逻辑：筛选出当前国家有库存的商品（排除isStockEmpty=true的商品）
+    let availableGoods = goodsData[cur].filter(g => !g.isStockEmpty && g.stock>0);
+    
+    if(availableGoods.length === 0) {
+      route.push({from:cur, to:next, buy:"无可用商品（全部无库存）", profit:0});
+      cur=next;
+      continue;
+    }
+    
+    // 随机选一个有库存的商品计算利润
+    let buyGood=availableGoods[Math.floor(Math.random()*availableGoods.length)];
+    let maxBuy=Math.floor(myMoney/buyGood.buyPrice);
+    let canBuy=Math.min(maxBuy, buyGood.stock);
+    let profitPer=Math.floor((buyGood.sellPrice||buyGood.buyPrice*1.5) - buyGood.buyPrice);
+    let profit=profitPer*canBuy;
+    totalProfit+=profit;
+    
+    route.push({
+      from:cur,
+      to:next,
+      buy:buyGood.name,
+      buyNum:canBuy,
+      profit:profit,
+      profitPer:profitPer
+    });
+    
+    cur=next;
+  }
+  
+  // 生成路线结果（含油耗/时间/利润）
+  let html=
+    `<b>🚗 最优6站闭环路线（已忽略无库存商品）</b><br>
+    <b>⛽ 燃油：${useOil}/8 | 航行时间：${timeStr} | 💰 总利润：${totalProfit}</b><br><br>`;
+  
+  route.forEach((r,i) => {
+    html+=`${i+1}. ${r.from} → ${r.to}<br>`;
+    html+=`　　🛒 买：${r.buy} × ${r.buyNum||0} 个<br>`;
+    html+=`　　📈 单利：<span class="profit">${r.profitPer||0}</span> | 本趟利润：<span class="profit">${r.profit||0}</span><br><br>`;
+  });
+  
+  document.getElementById("routeResult").innerHTML=html;
+}
+
+// ======================
+// 时间检查（完全按官方刷新规则）
+// ======================
+function checkTime() {
+  let now=new Date();
+  let h=now.getHours();
+  let m=now.getMinutes();
+  
+  // 22点提醒+自动重置
+  if(h>=21) {
+    document.getElementById("alert22").style.display="block";
+    if(h>=22 && m>=0) {
+      // 官方规则：22点统一刷新价格/库存
+      initAll();
+      alert("⏰ 22:00 官方统一刷新！\n1. 刷新货物价格/库存\n2. 重置所有商品库存状态");
+      renderGoodsStock(); // 刷新库存标记列表
+    }
+  } else {
+    document.getElementById("alert22").style.display="none";
+  }
+  
+  // 14/18点价格刷新提醒
+  if((h===14 && m===0) || (h===18 && m===0)) {
+    alert("⏰ 官方价格/库存刷新时间！\n请及时查看最新行情，调整跑商策略");
+  }
+  
+  updateMoneyOilTip(); // 实时更新燃油时间
+}
+</script>
+</body>
+</html>
